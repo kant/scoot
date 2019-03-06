@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/twitter/scoot/async"
-	"github.com/twitter/scoot/cloud/cluster"
+	"github.com/twitter/scoot/cloud"
 	"github.com/twitter/scoot/common/log/hooks"
 	"github.com/twitter/scoot/common/log/tags"
 	"github.com/twitter/scoot/common/stats"
@@ -130,7 +130,7 @@ func (ad averageDuration) update(d time.Duration) {
 	ad.duration = ad.duration + time.Duration(int64(d-ad.duration)/ad.count)
 }
 
-type RunnerFactory func(node cluster.Node) runner.Service
+type RunnerFactory func(node cloud.Node) runner.Service
 
 // Scheduler that keeps track of the state of running tasks & the cluster
 // so that it can make smarter scheduling decisions
@@ -172,13 +172,13 @@ type jobKillRequest struct {
 }
 
 // Create a New StatefulScheduler that implements the Scheduler interface
-// cluster.Cluster - cluster of worker nodes
+// cloud.Cluster - cluster of worker nodes
 // saga.SagaCoordinator - the Saga Coordinator to log to and recover from
 // RunnerFactory - Function which converts a node to a Runner
 // SchedulerConfig - additional configuration settings for the scheduler
 // StatsReceiver - stats receiver to log statistics to
 func NewStatefulSchedulerFromCluster(
-	cl *cluster.Cluster,
+	cl *cloud.Cluster,
 	sc saga.SagaCoordinator,
 	rf RunnerFactory,
 	config SchedulerConfig,
@@ -202,15 +202,15 @@ func NewStatefulSchedulerFromCluster(
 // If recoverJobsOnStartup is true Active Sagas in the saga log will be recovered
 // and rescheduled, otherwise no recovery will be done on startup
 func NewStatefulScheduler(
-	initialCluster []cluster.Node,
-	clusterUpdates chan []cluster.NodeUpdate,
+	initialCluster []cloud.Node,
+	clusterUpdates chan []cloud.NodeUpdate,
 	sc saga.SagaCoordinator,
 	rf RunnerFactory,
 	config SchedulerConfig,
 	stat stats.StatsReceiver,
 ) *statefulScheduler {
 
-	nodeReadyFn := func(node cluster.Node) (bool, time.Duration) {
+	nodeReadyFn := func(node cloud.Node) (bool, time.Duration) {
 		run := rf(node)
 		st, svc, err := run.StatusAll()
 		if err != nil || !svc.Initialized {
@@ -1004,11 +1004,11 @@ func (s *statefulScheduler) OfflineWorker(req sched.OfflineWorkerReq) error {
 		return fmt.Errorf("Requestor %s unauthorized to offline worker", req.Requestor)
 	}
 	log.Infof("Offlining worker %s", req.ID)
-	n := cluster.NodeId(req.ID)
+	n := cloud.NodeId(req.ID)
 	if _, ok := s.clusterState.nodes[n]; !ok {
 		return fmt.Errorf("Node %s was not present in nodes. It can't be offlined.", req.ID)
 	}
-	s.clusterState.updateCh <- []cluster.NodeUpdate{cluster.NewUserInitiatedRemove(n)}
+	s.clusterState.updateCh <- []cloud.NodeUpdate{cloud.NewUserInitiatedRemove(n)}
 	return nil
 }
 
@@ -1016,12 +1016,12 @@ func (s *statefulScheduler) ReinstateWorker(req sched.ReinstateWorkerReq) error 
 	if !stringInSlice(req.Requestor, s.config.Admins) && len(s.config.Admins) != 0 {
 		return fmt.Errorf("Requestor %s unauthorized to reinstate worker", req.Requestor)
 	}
-	n := cluster.NodeId(req.ID)
+	n := cloud.NodeId(req.ID)
 	if ns, ok := s.clusterState.offlinedNodes[n]; !ok {
 		return fmt.Errorf("Node %s was not present in offlinedNodes. It can't be reinstated.", req.ID)
 	} else {
 		log.Infof("Reinstating worker %s", req.ID)
-		s.clusterState.updateCh <- []cluster.NodeUpdate{cluster.NewUserInitiatedAdd(ns.node)}
+		s.clusterState.updateCh <- []cloud.NodeUpdate{cloud.NewUserInitiatedAdd(ns.node)}
 		return nil
 	}
 }

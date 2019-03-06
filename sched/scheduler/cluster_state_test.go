@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/twitter/scoot/cloud/cluster"
+	"github.com/twitter/scoot/cloud"
 	"github.com/twitter/scoot/common/stats"
 )
 
@@ -28,7 +28,7 @@ func Test_ClusterState_UpdateCluster(t *testing.T) {
 		t.Errorf("expected clusterGroup[].idle size to be 1")
 	}
 
-	ns, _ := cs.getNodeState(cluster.NodeId("node1"))
+	ns, _ := cs.getNodeState(cloud.NodeId("node1"))
 	if ns.runningTask != noTask {
 		t.Errorf("expected newly added node to have no tasks")
 	}
@@ -73,22 +73,22 @@ func Test_ClusterState_DuplicateNodeAdd(t *testing.T) {
 	ns, _ := cs.getNodeState("node1")
 	// verify that the state wasn't modified
 	if ns.runningTask != "task1" {
-		t.Errorf("Expected adding an already tracked node to not modify state %v", cs.nodes[cluster.NodeId("node1")].runningTask)
+		t.Errorf("Expected adding an already tracked node to not modify state %v", cs.nodes[cloud.NodeId("node1")].runningTask)
 	}
 }
 
 func Test_ClusterState_OfflineNode(t *testing.T) {
 	nodeID := "node1"
 	cs, _, _ := setupTestCluster(nil, nodeID)
-	if _, ok := cs.nodes[cluster.NodeId(nodeID)]; !ok {
+	if _, ok := cs.nodes[cloud.NodeId(nodeID)]; !ok {
 		t.Errorf("Expected %s to be in cs.nodes", nodeID)
 	}
 	if len(cs.nodes) != 1 {
 		t.Errorf("Expected len(cs.nodes) to be 1, was %d", len(cs.nodes))
 	}
-	cs.updateCh <- []cluster.NodeUpdate{cluster.NewUserInitiatedRemove(cluster.NodeId(nodeID))}
+	cs.updateCh <- []cloud.NodeUpdate{cloud.NewUserInitiatedRemove(cloud.NodeId(nodeID))}
 	cs.updateCluster()
-	if _, ok := cs.nodes[cluster.NodeId(nodeID)]; ok {
+	if _, ok := cs.nodes[cloud.NodeId(nodeID)]; ok {
 		t.Errorf("Expected %s to be offlined", nodeID)
 	}
 	if len(cs.nodes) != 0 {
@@ -99,26 +99,26 @@ func Test_ClusterState_OfflineNode(t *testing.T) {
 func Test_ClusterState_ReinstateNode(t *testing.T) {
 	nodeID := "node1"
 	cs, _, _ := setupTestCluster(nil, nodeID)
-	if _, ok := cs.nodes[cluster.NodeId(nodeID)]; !ok {
+	if _, ok := cs.nodes[cloud.NodeId(nodeID)]; !ok {
 		t.Errorf("Expected %s to be in cs.nodes", nodeID)
 	}
 	if len(cs.nodes) != 1 {
 		t.Errorf("Expected len(cs.nodes) to be 1, was %d", len(cs.nodes))
 	}
-	node := cs.nodes[cluster.NodeId(nodeID)].node
+	node := cs.nodes[cloud.NodeId(nodeID)].node
 
-	cs.updateCh <- []cluster.NodeUpdate{cluster.NewUserInitiatedRemove(cluster.NodeId(nodeID))}
+	cs.updateCh <- []cloud.NodeUpdate{cloud.NewUserInitiatedRemove(cloud.NodeId(nodeID))}
 	cs.updateCluster()
-	if _, ok := cs.nodes[cluster.NodeId(nodeID)]; ok {
+	if _, ok := cs.nodes[cloud.NodeId(nodeID)]; ok {
 		t.Errorf("Expected %s to be offlined", nodeID)
 	}
 	if len(cs.nodes) != 0 {
 		t.Errorf("Expected len(cs.nodes) to be 0, was %d", len(cs.nodes))
 	}
 
-	cs.updateCh <- []cluster.NodeUpdate{cluster.NewUserInitiatedAdd(node)}
+	cs.updateCh <- []cloud.NodeUpdate{cloud.NewUserInitiatedAdd(node)}
 	cs.updateCluster()
-	if _, ok := cs.nodes[cluster.NodeId(nodeID)]; !ok {
+	if _, ok := cs.nodes[cloud.NodeId(nodeID)]; !ok {
 		t.Errorf("Expected %s to be in cs.nodes after reinstatement", nodeID)
 	}
 	if len(cs.nodes) != 1 {
@@ -129,25 +129,25 @@ func Test_ClusterState_ReinstateNode(t *testing.T) {
 func Test_ClusterState_OfflineNodeAlreadyOffline(t *testing.T) {
 	nodeID := "node1"
 	cs, _, _ := setupTestCluster(nil, nodeID)
-	if _, ok := cs.nodes[cluster.NodeId(nodeID)]; !ok {
+	if _, ok := cs.nodes[cloud.NodeId(nodeID)]; !ok {
 		t.Errorf("Expected %s to be in cs.nodes", nodeID)
 	}
 	if len(cs.nodes) != 1 {
 		t.Errorf("Expected len(cs.nodes) to be 1, was %d", len(cs.nodes))
 	}
 
-	cs.updateCh <- []cluster.NodeUpdate{cluster.NewUserInitiatedRemove(cluster.NodeId(nodeID))}
+	cs.updateCh <- []cloud.NodeUpdate{cloud.NewUserInitiatedRemove(cloud.NodeId(nodeID))}
 	cs.updateCluster()
-	if _, ok := cs.nodes[cluster.NodeId(nodeID)]; ok {
+	if _, ok := cs.nodes[cloud.NodeId(nodeID)]; ok {
 		t.Errorf("Expected %s to be offlined", nodeID)
 	}
 	if len(cs.nodes) != 0 {
 		t.Errorf("Expected len(cs.nodes) to be 0, was %d", len(cs.nodes))
 	}
 
-	cs.updateCh <- []cluster.NodeUpdate{cluster.NewUserInitiatedRemove(cluster.NodeId(nodeID))}
+	cs.updateCh <- []cloud.NodeUpdate{cloud.NewUserInitiatedRemove(cloud.NodeId(nodeID))}
 	cs.updateCluster()
-	if _, ok := cs.nodes[cluster.NodeId(nodeID)]; ok {
+	if _, ok := cs.nodes[cloud.NodeId(nodeID)]; ok {
 		t.Errorf("Expected %s to still be offlined", nodeID)
 	}
 	if len(cs.nodes) != 0 {
@@ -158,35 +158,35 @@ func Test_ClusterState_OfflineNodeAlreadyOffline(t *testing.T) {
 func Test_ClusterState_ReinstateNodeAlreadyReinstated(t *testing.T) {
 	nodeID := "node1"
 	cs, _, _ := setupTestCluster(nil, nodeID)
-	if _, ok := cs.nodes[cluster.NodeId(nodeID)]; !ok {
+	if _, ok := cs.nodes[cloud.NodeId(nodeID)]; !ok {
 		t.Errorf("Expected %s to be in cs.nodes", nodeID)
 	}
 	if len(cs.nodes) != 1 {
 		t.Errorf("Expected len(cs.nodes) to be 1, was %d", len(cs.nodes))
 	}
-	node := cs.nodes[cluster.NodeId(nodeID)].node
+	node := cs.nodes[cloud.NodeId(nodeID)].node
 
-	cs.updateCh <- []cluster.NodeUpdate{cluster.NewUserInitiatedRemove(cluster.NodeId(nodeID))}
+	cs.updateCh <- []cloud.NodeUpdate{cloud.NewUserInitiatedRemove(cloud.NodeId(nodeID))}
 	cs.updateCluster()
-	if _, ok := cs.nodes[cluster.NodeId(nodeID)]; ok {
+	if _, ok := cs.nodes[cloud.NodeId(nodeID)]; ok {
 		t.Errorf("Expected %s to be offlined", nodeID)
 	}
 	if len(cs.nodes) != 0 {
 		t.Errorf("Expected len(cs.nodes) to be 0, was %d", len(cs.nodes))
 	}
 
-	cs.updateCh <- []cluster.NodeUpdate{cluster.NewUserInitiatedAdd(node)}
+	cs.updateCh <- []cloud.NodeUpdate{cloud.NewUserInitiatedAdd(node)}
 	cs.updateCluster()
-	if _, ok := cs.nodes[cluster.NodeId(nodeID)]; !ok {
+	if _, ok := cs.nodes[cloud.NodeId(nodeID)]; !ok {
 		t.Errorf("Expected %s to be in cs.nodes after reinstatement", nodeID)
 	}
 	if len(cs.nodes) != 1 {
 		t.Errorf("Expected len(cs.nodes) to be 1, was %d", len(cs.nodes))
 	}
 
-	cs.updateCh <- []cluster.NodeUpdate{cluster.NewUserInitiatedAdd(node)}
+	cs.updateCh <- []cloud.NodeUpdate{cloud.NewUserInitiatedAdd(node)}
 	cs.updateCluster()
-	if _, ok := cs.nodes[cluster.NodeId(nodeID)]; !ok {
+	if _, ok := cs.nodes[cloud.NodeId(nodeID)]; !ok {
 		t.Errorf("Expected %s to still be in cs.nodes after double reinstatement", nodeID)
 	}
 	if len(cs.nodes) != 1 {
@@ -224,7 +224,7 @@ func Test_ClusterState_NodeGroups(t *testing.T) {
 		"node1": make(chan interface{}), "node2": make(chan interface{}),
 		"node3": make(chan interface{}), "node4": make(chan interface{}),
 	}
-	readyFn := func(node cluster.Node) (bool, time.Duration) {
+	readyFn := func(node cloud.Node) (bool, time.Duration) {
 		select {
 		case <-ready[string(node.Id())]:
 			return true, time.Duration(0)
@@ -245,7 +245,7 @@ func Test_ClusterState_NodeGroups(t *testing.T) {
 
 	// Set node1 to init'd and make sure it gets moved out of suspended.
 	// Sleeping so nodeState goroutines can pick up readiness changes.
-	node1 := cs.suspendedNodes[cluster.NodeId("node1")]
+	node1 := cs.suspendedNodes[cloud.NodeId("node1")]
 	setReady("node1")
 	time.Sleep(10 * time.Millisecond)
 	cs.updateCluster()
@@ -264,7 +264,7 @@ func Test_ClusterState_NodeGroups(t *testing.T) {
 	}
 
 	// Remove node2 and make sure its state is set correctly.
-	node2 := cs.suspendedNodes[cluster.NodeId("node2")]
+	node2 := cs.suspendedNodes[cloud.NodeId("node2")]
 	cl.remove("node2")
 	cs.updateCluster()
 	if len(cs.nodes) != 1 || len(cs.suspendedNodes) != 3 || node2.readyCh == nil || node2.timeLost == nilTime {
@@ -298,10 +298,10 @@ func Test_ClusterState_NodeGroups(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 	cs.updateCluster()
 	if len(cs.nodes) != 4 || len(cs.suspendedNodes) != 0 ||
-		cs.nodes[cluster.NodeId("node1")].suspended() ||
-		cs.nodes[cluster.NodeId("node2")].suspended() ||
-		cs.nodes[cluster.NodeId("node3")].suspended() ||
-		cs.nodes[cluster.NodeId("node4")].suspended() {
+		cs.nodes[cloud.NodeId("node1")].suspended() ||
+		cs.nodes[cloud.NodeId("node2")].suspended() ||
+		cs.nodes[cloud.NodeId("node3")].suspended() ||
+		cs.nodes[cloud.NodeId("node4")].suspended() {
 		t.Fatalf("Expected all healthy and init'd nodes, got: %s, %s",
 			spew.Sdump(cs.nodes), spew.Sdump(cs.suspendedNodes))
 	}
@@ -320,21 +320,21 @@ func Test_ClusterState_NodeGroups(t *testing.T) {
 	cs.taskScheduled("node3", "job1", "task3", "snapB")
 	expectedGroups := map[string]*nodeGroup{
 		"": &nodeGroup{
-			idle: map[cluster.NodeId]*nodeState{
+			idle: map[cloud.NodeId]*nodeState{
 				"node4": cs.nodes["node4"],
 			},
-			busy: map[cluster.NodeId]*nodeState{},
+			busy: map[cloud.NodeId]*nodeState{},
 		},
 		"snapA": &nodeGroup{
-			idle: map[cluster.NodeId]*nodeState{},
-			busy: map[cluster.NodeId]*nodeState{
+			idle: map[cloud.NodeId]*nodeState{},
+			busy: map[cloud.NodeId]*nodeState{
 				"node1": cs.nodes["node1"],
 				"node2": cs.nodes["node2"],
 			},
 		},
 		"snapB": &nodeGroup{
-			idle: map[cluster.NodeId]*nodeState{},
-			busy: map[cluster.NodeId]*nodeState{
+			idle: map[cloud.NodeId]*nodeState{},
+			busy: map[cloud.NodeId]*nodeState{
 				"node3": cs.nodes["node3"],
 			},
 		},
@@ -422,17 +422,17 @@ func Test_ClusterState_NodeGroups(t *testing.T) {
 }
 
 type testCluster struct {
-	ch    chan []cluster.NodeUpdate
-	nodes []cluster.Node
+	ch    chan []cloud.NodeUpdate
+	nodes []cloud.Node
 }
 
 func makeTestCluster(node ...string) *testCluster {
 	h := &testCluster{
-		ch: make(chan []cluster.NodeUpdate, 1),
+		ch: make(chan []cloud.NodeUpdate, 1),
 	}
-	nodes := []cluster.Node{}
+	nodes := []cloud.Node{}
 	for _, n := range node {
-		nodes = append(nodes, cluster.NewIdNode(n))
+		nodes = append(nodes, cloud.NewIdNode(n))
 	}
 	h.nodes = nodes
 	return h
@@ -447,11 +447,11 @@ func setupTestCluster(rfn ReadyFn, node ...string) (*clusterState, *testCluster,
 }
 
 func (h *testCluster) add(node string) {
-	update := cluster.NewAdd(cluster.NewIdNode(node))
-	h.ch <- []cluster.NodeUpdate{update}
+	update := cloud.NewAdd(cloud.NewIdNode(node))
+	h.ch <- []cloud.NodeUpdate{update}
 }
 
 func (h *testCluster) remove(node string) {
-	update := cluster.NewRemove(cluster.NodeId(node))
-	h.ch <- []cluster.NodeUpdate{update}
+	update := cloud.NewRemove(cloud.NodeId(node))
+	h.ch <- []cloud.NodeUpdate{update}
 }

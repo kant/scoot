@@ -8,7 +8,7 @@ import (
 
 	"github.com/twitter/scoot/bazel"
 	"github.com/twitter/scoot/bazel/execution"
-	"github.com/twitter/scoot/cloud/cluster"
+	"github.com/twitter/scoot/cloud"
 	"github.com/twitter/scoot/common/endpoints"
 	"github.com/twitter/scoot/common/stats"
 	"github.com/twitter/scoot/config/jsonconfig"
@@ -49,9 +49,9 @@ func Defaults() (*ice.MagicBag, jsonconfig.Schema) {
 		},
 
 		func(
-			cl *cluster.Cluster,
+			cl *cloud.Cluster,
 			sc saga.SagaCoordinator,
-			rf func(cluster.Node) runner.Service,
+			rf func(cloud.Node) runner.Service,
 			config scheduler.SchedulerConfig,
 			stat stats.StatsReceiver) scheduler.Scheduler {
 			return scheduler.NewStatefulSchedulerFromCluster(cl, sc, rf, config, stat)

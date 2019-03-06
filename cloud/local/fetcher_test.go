@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/twitter/scoot/cloud/cluster"
+	"github.com/twitter/scoot/cloud"
 )
 
 func TestFetcher(t *testing.T) {
@@ -16,9 +16,9 @@ func TestFetcher(t *testing.T) {
 79004 s004  S+     0:00.02 ./workerserver -thrift_addr localhost:9877
  8440 s005  Ss     0:01.58 /bin/bash
 `
-	expected := []cluster.Node{
-		cluster.NewIdNode("localhost:9876"),
-		cluster.NewIdNode("localhost:9877"),
+	expected := []cloud.Node{
+		cloud.NewIdNode("localhost:9876"),
+		cloud.NewIdNode("localhost:9877"),
 	}
 	re := regexp.MustCompile("workerserver.*thrift_addr(?: +|=)([^ ]*)")
 

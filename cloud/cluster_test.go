@@ -1,7 +1,6 @@
-package cluster_test
+package cloud
 
 import (
-	"github.com/twitter/scoot/cloud/cluster"
 	"testing"
 )
 
@@ -69,16 +68,16 @@ func TestSubscribe(t *testing.T) {
 
 type helper struct {
 	t        *testing.T
-	c        *cluster.Cluster
-	updateCh chan []cluster.NodeUpdate
-	f        cluster.Fetcher
-	ch       chan cluster.ClusterUpdate
+	c        *Cluster
+	updateCh chan []NodeUpdate
+	f        Fetcher
+	ch       chan ClusterUpdate
 }
 
 func makeHelper(t *testing.T) *helper {
 	h := &helper{t: t}
-	h.ch = make(chan cluster.ClusterUpdate)
-	h.c = cluster.NewCluster(nil, h.ch)
+	h.ch = make(chan ClusterUpdate)
+	h.c = NewCluster(nil, h.ch)
 	return h
 }
 
@@ -91,7 +90,7 @@ func (h *helper) assertMembers(node ...string) {
 }
 
 func (h *helper) add(node ...string) {
-	updates := []cluster.NodeUpdate{}
+	updates := []NodeUpdate{}
 	for _, n := range node {
 		updates = append(updates, add(n))
 	}
@@ -99,7 +98,7 @@ func (h *helper) add(node ...string) {
 }
 
 func (h *helper) remove(node ...string) {
-	updates := []cluster.NodeUpdate{}
+	updates := []NodeUpdate{}
 	for _, n := range node {
 		updates = append(updates, remove(n))
 	}
@@ -111,22 +110,22 @@ func (h *helper) changeStateTo(node ...string) {
 	h.ch <- nodes
 }
 
-func (h *helper) subscribe() cluster.Subscription {
+func (h *helper) subscribe() Subscription {
 	return h.c.Subscribe()
 }
 
-func (h *helper) assertInitialMembers(s cluster.Subscription, node ...string) {
+func (h *helper) assertInitialMembers(s Subscription, node ...string) {
 	assertMembersEqual(s.InitialMembers, makeNodes(node...), h.t)
 }
 
-func (h *helper) assertUpdates(s cluster.Subscription, expected ...cluster.NodeUpdate) {
+func (h *helper) assertUpdates(s Subscription, expected ...NodeUpdate) {
 	// Calling Members makes sure that any updates sent have propagated from the cluster to the subscription
 	h.c.Members()
 	actual := <-s.Updates
 	h.assertUpdatesEqual(expected, actual)
 }
 
-func (h *helper) assertUpdatesEqual(expected []cluster.NodeUpdate, actual []cluster.NodeUpdate) {
+func (h *helper) assertUpdatesEqual(expected []NodeUpdate, actual []NodeUpdate) {
 	if len(expected) != len(actual) {
 		h.t.Fatalf("unequal updates: %v %v", expected, actual)
 	}
@@ -138,23 +137,23 @@ func (h *helper) assertUpdatesEqual(expected []cluster.NodeUpdate, actual []clus
 	}
 }
 
-func makeNodes(node ...string) []cluster.Node {
-	r := []cluster.Node{}
+func makeNodes(node ...string) []Node {
+	r := []Node{}
 	for _, n := range node {
-		r = append(r, cluster.NewIdNode(n))
+		r = append(r, NewIdNode(n))
 	}
 	return r
 }
 
-func add(node string) cluster.NodeUpdate {
-	return cluster.NewAdd(cluster.NewIdNode(node))
+func add(node string) NodeUpdate {
+	return NewAdd(NewIdNode(node))
 }
 
-func remove(node string) cluster.NodeUpdate {
-	return cluster.NewRemove(cluster.NodeId(node))
+func remove(node string) NodeUpdate {
+	return NewRemove(NodeId(node))
 }
 
-func assertMembersEqual(expected []cluster.Node, actual []cluster.Node, t *testing.T) {
+func assertMembersEqual(expected []Node, actual []Node, t *testing.T) {
 	if len(expected) != len(actual) {
 		t.Fatalf("unequal members: %v %v", expected, actual)
 	}

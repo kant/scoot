@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/golang/mock/gomock"
-	"github.com/twitter/scoot/cloud/cluster"
+	"github.com/twitter/scoot/cloud"
 	"github.com/twitter/scoot/common/stats"
 	"github.com/twitter/scoot/os/temp"
 	"github.com/twitter/scoot/runner"
@@ -36,10 +36,10 @@ func (t *TestTerminator) Fatalf(format string, args ...interface{}) {
 
 // objects needed to initialize a stateful scheduler
 type schedulerDeps struct {
-	initialCl       []cluster.Node
-	clUpdates       chan []cluster.NodeUpdate
+	initialCl       []cloud.Node
+	clUpdates       chan []cloud.NodeUpdate
 	sc              saga.SagaCoordinator
-	rf              func(cluster.Node) runner.Service
+	rf              func(cloud.Node) runner.Service
 	config          SchedulerConfig
 	nodeToWorkerMap map[string]runner.Service
 	statsRegistry   stats.StatsRegistry
@@ -56,7 +56,7 @@ func getDefaultSchedDeps() *schedulerDeps {
 		initialCl: cl.nodes,
 		clUpdates: cl.ch,
 		sc:        sagalogs.MakeInMemorySagaCoordinator(),
-		rf: func(n cluster.Node) runner.Service {
+		rf: func(n cloud.Node) runner.Service {
 			return workers.MakeInmemoryWorker(n, tmp)
 		},
 		config: SchedulerConfig{
@@ -214,7 +214,7 @@ func Test_StatefulScheduler_TaskGetsMarkedCompletedAfterMaxRetriesFailedStarts(t
 	deps.config.MaxRetriesPerTask = 3
 
 	// create a runner factory that returns a runner that returns an error
-	deps.rf = func(cluster.Node) runner.Service {
+	deps.rf = func(cloud.Node) runner.Service {
 		chaos := runners.NewChaosRunner(nil)
 
 		chaos.SetError(fmt.Errorf("starting error"))
@@ -264,7 +264,7 @@ func Test_StatefulScheduler_TaskGetsMarkedCompletedAfterMaxRetriesFailedRuns(t *
 
 	// create a runner factory that returns a runner that always fails
 	tmp, _ := temp.TempDirDefault()
-	deps.rf = func(cluster.Node) runner.Service {
+	deps.rf = func(cloud.Node) runner.Service {
 		ex := execers.NewDoneExecer()
 		ex.ExecError = errors.New("Test - failed to exec")
 		filerMap := runner.MakeRunTypeMap()
@@ -430,7 +430,7 @@ func Test_StatefulScheduler_KillFinishedJob(t *testing.T) {
 
 	// verify state changed appropriately
 	for i := 0; i < 5; i++ {
-		if s.clusterState.nodes[cluster.NodeId(fmt.Sprintf("node%d", i+1))].runningTask != noTask {
+		if s.clusterState.nodes[cloud.NodeId(fmt.Sprintf("node%d", i+1))].runningTask != noTask {
 			t.Errorf("Expected nodes to not have any running tasks")
 		}
 	}
@@ -673,7 +673,7 @@ func getDepsWithSimWorker() (*schedulerDeps, []*execers.SimExecer) {
 		initialCl: cl.nodes,
 		clUpdates: cl.ch,
 		sc:        sagalogs.MakeInMemorySagaCoordinator(),
-		rf: func(n cluster.Node) runner.Service {
+		rf: func(n cloud.Node) runner.Service {
 			ex := execers.NewSimExecer()
 			filerMap := runner.MakeRunTypeMap()
 			filerMap[runner.RunTypeScoot] = snapshot.FilerAndInitDoneCh{Filer: snapshots.MakeInvalidFiler(), IDC: nil}

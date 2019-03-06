@@ -7,7 +7,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/luci/go-render/render"
-	"github.com/twitter/scoot/cloud/cluster"
+	"github.com/twitter/scoot/cloud"
 	"github.com/twitter/scoot/common/stats"
 	"github.com/twitter/scoot/runner"
 	"github.com/twitter/scoot/saga/sagalogs"
@@ -86,7 +86,7 @@ func Test_TaskAssignment_Affinity(t *testing.T) {
 	}
 
 	// Schedule the first three tasks and complete task2, task3.
-	taskNodes := map[string]cluster.NodeId{}
+	taskNodes := map[string]cloud.NodeId{}
 	for _, as := range assignments {
 		taskNodes[as.task.TaskId] = as.nodeSt.node.Id()
 		cs.taskScheduled(as.nodeSt.node.Id(), "job1", as.task.TaskId, as.task.Def.SnapshotID)
@@ -98,8 +98,8 @@ func Test_TaskAssignment_Affinity(t *testing.T) {
 	}
 
 	// Add a new idle node and then confirm that task4, task5 are assigned based on affinity.
-	cs.update([]cluster.NodeUpdate{
-		cluster.NodeUpdate{UpdateType: cluster.NodeAdded, Id: "node4", Node: cluster.NewIdNode("node4")},
+	cs.update([]cloud.NodeUpdate{
+		cloud.NodeUpdate{UpdateType: cloud.NodeAdded, Id: "node4", Node: cloud.NewIdNode("node4")},
 	})
 	assignments, _ = getTaskAssignments(cs, []*jobState{js}, req, nil, nil)
 	for _, as := range assignments {

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/apache/thrift/lib/go/thrift"
-	"github.com/twitter/scoot/cloud/cluster"
+	"github.com/twitter/scoot/cloud"
 	"github.com/twitter/scoot/common/dialer"
 	"github.com/twitter/scoot/ice"
 	"github.com/twitter/scoot/os/temp"
@@ -29,7 +29,7 @@ const defaultPollingPeriod = time.Duration(250) * time.Millisecond
 func (c *WorkersThriftConfig) Create(
 	tf thrift.TTransportFactory,
 	pf thrift.TProtocolFactory,
-	ct ClientTimeout) (func(cluster.Node) runner.Service, error) {
+	ct ClientTimeout) (func(cloud.Node) runner.Service, error) {
 
 	pollingPeriod := defaultPollingPeriod
 	var err error
@@ -42,7 +42,7 @@ func (c *WorkersThriftConfig) Create(
 		}
 	}
 
-	rf := func(node cluster.Node) runner.Service {
+	rf := func(node cloud.Node) runner.Service {
 		di := dialer.NewSimpleDialer(tf, pf, time.Duration(ct))
 		cl, _ := client.NewSimpleClient(di, string(node.Id()))
 		return runners.NewPollingService(cl, cl, cl, pollingPeriod)
@@ -62,13 +62,13 @@ type WorkersLocalConfig struct {
 }
 
 func (c *WorkersLocalConfig) Install(bag *ice.MagicBag) {
-	bag.Put(func(tmp *temp.TempDir) func(cluster.Node) runner.Service {
+	bag.Put(func(tmp *temp.TempDir) func(cloud.Node) runner.Service {
 		return InmemoryWorkerFactory(tmp)
 	})
 }
 
-func InmemoryWorkerFactory(tmp *temp.TempDir) func(cluster.Node) runner.Service {
-	return func(node cluster.Node) runner.Service {
+func InmemoryWorkerFactory(tmp *temp.TempDir) func(cloud.Node) runner.Service {
+	return func(node cloud.Node) runner.Service {
 		return workers.MakeInmemoryWorker(node, tmp)
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/twitter/scoot/cloud/cluster"
+	"github.com/twitter/scoot/cloud"
 	"github.com/twitter/scoot/common/stats"
 )
 
@@ -19,16 +19,16 @@ const defaultMaxFlakyDuration = 15 * time.Minute
 var nilTime = time.Time{}
 
 // Cluster will use this function to determine if newly added nodes are ready to be used.
-type ReadyFn func(cluster.Node) (ready bool, backoffDuration time.Duration)
+type ReadyFn func(cloud.Node) (ready bool, backoffDuration time.Duration)
 
 // clusterState maintains a cluster of nodes and information about what task is running on each node.
 // nodeGroups is for node affinity where we want to remember which node last ran with what snapshot.
 // NOTE: a node can be both running in scheduler and suspended here (distributed system eventual consistency...)
 type clusterState struct {
-	updateCh         chan []cluster.NodeUpdate
-	nodes            map[cluster.NodeId]*nodeState // All healthy nodes.
-	suspendedNodes   map[cluster.NodeId]*nodeState // All new, lost, or flaky nodes, disjoint from 'nodes'.
-	offlinedNodes    map[cluster.NodeId]*nodeState // All User initiated offline nodes. Disjoint from 'nodes' & 'suspendedNodes'
+	updateCh         chan []cloud.NodeUpdate
+	nodes            map[cloud.NodeId]*nodeState // All healthy nodes.
+	suspendedNodes   map[cloud.NodeId]*nodeState // All new, lost, or flaky nodes, disjoint from 'nodes'.
+	offlinedNodes    map[cloud.NodeId]*nodeState // All User initiated offline nodes. Disjoint from 'nodes' & 'suspendedNodes'
 	nodeGroups       map[string]*nodeGroup         // key is a snapshotId.
 	maxLostDuration  time.Duration                 // after which we remove a node from the cluster entirely
 	maxFlakyDuration time.Duration                 // after which we mark it not flaky and put it back in rotation.
@@ -38,17 +38,17 @@ type clusterState struct {
 }
 
 type nodeGroup struct {
-	idle map[cluster.NodeId]*nodeState
-	busy map[cluster.NodeId]*nodeState
+	idle map[cloud.NodeId]*nodeState
+	busy map[cloud.NodeId]*nodeState
 }
 
 func newNodeGroup() *nodeGroup {
-	return &nodeGroup{idle: map[cluster.NodeId]*nodeState{}, busy: map[cluster.NodeId]*nodeState{}}
+	return &nodeGroup{idle: map[cloud.NodeId]*nodeState{}, busy: map[cloud.NodeId]*nodeState{}}
 }
 
 // The State of A Node in the Cluster
 type nodeState struct {
-	node        cluster.Node
+	node        cloud.Node
 	runningJob  string
 	runningTask string
 	snapshotId  string
@@ -107,7 +107,7 @@ func (ns *nodeState) startReadyLoop(rfn ReadyFn) {
 }
 
 // Initializes a Node State for the specified Node
-func newNodeState(node cluster.Node) *nodeState {
+func newNodeState(node cloud.Node) *nodeState {
 	return &nodeState{
 		node:        node,
 		runningJob:  noJob,
@@ -123,16 +123,16 @@ func newNodeState(node cluster.Node) *nodeState {
 // Creates a New State Distributor with the initial nodes, and which updates
 // nodes added or removed based on the supplied channel. ReadyFn is optional.
 // New cluster is returned along with a doneCh which the caller can close to exit our goroutine.
-func newClusterState(initial []cluster.Node, updateCh chan []cluster.NodeUpdate, rfn ReadyFn, stats stats.StatsReceiver) *clusterState {
-	var updates []cluster.NodeUpdate
+func newClusterState(initial []cloud.Node, updateCh chan []cloud.NodeUpdate, rfn ReadyFn, stats stats.StatsReceiver) *clusterState {
+	var updates []cloud.NodeUpdate
 	for _, n := range initial {
-		updates = append(updates, cluster.NewAdd(n))
+		updates = append(updates, cloud.NewAdd(n))
 	}
 	cs := &clusterState{
 		updateCh:         updateCh,
-		nodes:            make(map[cluster.NodeId]*nodeState),
-		suspendedNodes:   map[cluster.NodeId]*nodeState{},
-		offlinedNodes:    make(map[cluster.NodeId]*nodeState),
+		nodes:            make(map[cloud.NodeId]*nodeState),
+		suspendedNodes:   map[cloud.NodeId]*nodeState{},
+		offlinedNodes:    make(map[cloud.NodeId]*nodeState),
 		nodeGroups:       map[string]*nodeGroup{"": newNodeGroup()},
 		maxLostDuration:  defaultMaxLostDuration,
 		maxFlakyDuration: defaultMaxFlakyDuration,
@@ -151,7 +151,7 @@ func (c *clusterState) numFree() int {
 
 // Update ClusterState to reflect that a task has been scheduled on a particular node
 // SnapshotId should be the value from the task definition associated with the given taskId.
-func (c *clusterState) taskScheduled(nodeId cluster.NodeId, jobId, taskId, snapshotId string) {
+func (c *clusterState) taskScheduled(nodeId cloud.NodeId, jobId, taskId, snapshotId string) {
 	ns := c.nodes[nodeId]
 
 	delete(c.nodeGroups[ns.snapshotId].idle, nodeId)
@@ -174,7 +174,7 @@ func (c *clusterState) taskScheduled(nodeId cluster.NodeId, jobId, taskId, snaps
 // Update ClusterState to reflect that a task has finished running on
 // a particular node, whether successfully or unsuccessfully.
 // If the node isn't found then the node was already suspended and deleted, just decrement numRunning.
-func (c *clusterState) taskCompleted(nodeId cluster.NodeId, flaky bool) {
+func (c *clusterState) taskCompleted(nodeId cloud.NodeId, flaky bool) {
 	var ns *nodeState
 	var ok bool
 	if ns, ok = c.nodes[nodeId]; !ok {
@@ -197,7 +197,7 @@ func (c *clusterState) taskCompleted(nodeId cluster.NodeId, flaky bool) {
 	c.numRunning--
 }
 
-func (c *clusterState) getNodeState(nodeId cluster.NodeId) (*nodeState, bool) {
+func (c *clusterState) getNodeState(nodeId cloud.NodeId) (*nodeState, bool) {
 	ns, ok := c.nodes[nodeId]
 	return ns, ok
 }
@@ -218,13 +218,13 @@ func (c *clusterState) updateCluster() {
 // Processes nodes being added and removed from the cluster & updates the distributor state accordingly.
 // Note, we don't expect there to be many updates after startup if the cluster is relatively stable.
 //TODO(jschiller) this assumes that new nodes never have the same id as previous ones but we shouldn't rely on that.
-func (c *clusterState) update(updates []cluster.NodeUpdate) {
+func (c *clusterState) update(updates []cloud.NodeUpdate) {
 	// Apply updates
 	for _, update := range updates {
 		var newNode *nodeState
 		switch update.UpdateType {
 
-		case cluster.NodeAdded:
+		case cloud.NodeAdded:
 			// UserInitiated is true only when this NodeUpdate comes from a ReinstateWorker or OfflineWorker request
 			if update.UserInitiated {
 				log.Infof("Reinstating node %s", update.Id)
@@ -270,7 +270,7 @@ func (c *clusterState) update(updates []cluster.NodeUpdate) {
 				log.Infof("Node already added!! %v (%s)", update.Id, ns)
 			}
 
-		case cluster.NodeRemoved:
+		case cloud.NodeRemoved:
 			// UserInitiated is true only when this NodeUpdate comes from a ReinstateWorker or OfflineWorker request
 			if update.UserInitiated {
 				log.Infof("Offlining node %s", update.Id)

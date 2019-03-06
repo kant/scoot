@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/twitter/scoot/cloud/cluster"
+	"github.com/twitter/scoot/cloud"
 	"github.com/twitter/scoot/sched"
 )
 
@@ -16,7 +16,7 @@ func Test_StatefulScheduler_TasksDistributedEvenly(t *testing.T) {
 	s := makeDefaultStatefulScheduler()
 
 	//initialize NodeMap to keep track of tasks per node
-	taskMap := make(map[string]cluster.NodeId)
+	taskMap := make(map[string]cloud.NodeId)
 
 	go func() {
 		checkJobMsg := <-s.checkJobCh
@@ -34,7 +34,7 @@ func Test_StatefulScheduler_TasksDistributedEvenly(t *testing.T) {
 		s.step()
 	}
 
-	taskCountMap := make(map[cluster.NodeId]int)
+	taskCountMap := make(map[cloud.NodeId]int)
 	for _, nodeId := range taskMap {
 		taskCountMap[nodeId]++
 	}

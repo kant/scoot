@@ -10,13 +10,13 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/twitter/groupcache"
-	"github.com/twitter/scoot/cloud/cluster"
+	"github.com/twitter/scoot/cloud"
 	"github.com/twitter/scoot/common/stats"
 )
 
 // Called periodically in a goroutine. Must include the current instance among the fetched nodes.
 type PeerFetcher interface {
-	Fetch() ([]cluster.Node, error)
+	Fetch() ([]cloud.Node, error)
 }
 
 // TODO: we should consider extending contexts in groupcache lib further to:
@@ -30,7 +30,7 @@ type GroupcacheConfig struct {
 	Memory_bytes int64
 	AddrSelf     string
 	Endpoint     string
-	Cluster      *cluster.Cluster
+	Cluster      *cloud.Cluster
 }
 
 // Add in-memory caching to the given store.
@@ -85,7 +85,7 @@ func MakeGroupcacheStore(underlying Store, cfg *GroupcacheConfig, ttlc *TTLConfi
 }
 
 // Convert 'host:port' node ids to the format expected by groupcache peering, http URLs.
-func toPeers(nodes []cluster.Node, stat stats.StatsReceiver) []string {
+func toPeers(nodes []cloud.Node, stat stats.StatsReceiver) []string {
 	peers := []string{}
 	for _, node := range nodes {
 		peers = append(peers, "http://"+string(node.Id()))
@@ -99,7 +99,7 @@ func toPeers(nodes []cluster.Node, stat stats.StatsReceiver) []string {
 // Loop will listen for cluster updates and create a list of peer addresses to update groupcache.
 // Cluster is expected to include the current node.
 // Also updates cache stats, every 1s for now to account for arbitrary stat latch time.
-func loop(c *cluster.Cluster, pool *groupcache.HTTPPool, cache *groupcache.Group, stat stats.StatsReceiver) {
+func loop(c *cloud.Cluster, pool *groupcache.HTTPPool, cache *groupcache.Group, stat stats.StatsReceiver) {
 	sub := c.Subscribe()
 	pool.Set(toPeers(c.Members(), stat)...)
 	ticker := time.NewTicker(1 * time.Second)

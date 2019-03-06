@@ -136,7 +136,7 @@ Loop:
 				continue
 			}
 
-			// How many of the requested tasks can we assign based on the max healthy task load for our cluster.
+			// How many of the requested tasks can we assign based on the max healthy task load for our cloud.
 			// (the schedulable count is the minimum number of nodes appropriate for the current set of tasks).
 			numScaledTasks := ceil(float32(numTasks) * cfg.GetNodeScaleFactor(len(cs.nodes), p))
 			numSchedulable := 0

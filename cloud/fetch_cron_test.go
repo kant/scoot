@@ -1,7 +1,6 @@
-package cluster_test
+package cloud
 
 import (
-	"github.com/twitter/scoot/cloud/cluster"
 	"reflect"
 	"sort"
 	"sync"
@@ -23,7 +22,7 @@ type cronHelper struct {
 	t      *testing.T
 	tickCh chan time.Time
 	f      *fakeFetcher
-	ch     chan cluster.ClusterUpdate
+	ch     chan ClusterUpdate
 }
 
 func makeCronHelper(t *testing.T) *cronHelper {
@@ -32,13 +31,13 @@ func makeCronHelper(t *testing.T) *cronHelper {
 		tickCh: make(chan time.Time),
 		f:      &fakeFetcher{},
 	}
-	h.ch = cluster.MakeFetchCron(h.f, h.tickCh)
+	h.ch = MakeFetchCron(h.f, h.tickCh)
 	return h
 }
 
 func (h *cronHelper) assertFetch(t *testing.T, expectedNames ...string) {
 	nodes := nodes(expectedNames)
-	sort.Sort(cluster.NodeSorter(nodes))
+	sort.Sort(NodeSorter(nodes))
 	h.f.setResult(nodes)
 	expected := nodes
 	h.tickCh <- time.Now()
@@ -48,10 +47,10 @@ func (h *cronHelper) assertFetch(t *testing.T, expectedNames ...string) {
 	}
 }
 
-func nodes(ids []string) []cluster.Node {
-	n := []cluster.Node{}
+func nodes(ids []string) []Node {
+	n := []Node{}
 	for _, name := range ids {
-		n = append(n, cluster.NewIdNode(name))
+		n = append(n, NewIdNode(name))
 	}
 	return n
 }
@@ -59,16 +58,16 @@ func nodes(ids []string) []cluster.Node {
 // fakeFetcher for testing fetch cron
 type fakeFetcher struct {
 	mutex sync.Mutex
-	nodes []cluster.Node
+	nodes []Node
 }
 
-func (f *fakeFetcher) Fetch() ([]cluster.Node, error) {
+func (f *fakeFetcher) Fetch() ([]Node, error) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	return f.nodes, nil
 }
 
-func (f *fakeFetcher) setResult(nodes []cluster.Node) {
+func (f *fakeFetcher) setResult(nodes []Node) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	f.nodes = nodes

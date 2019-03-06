@@ -9,12 +9,12 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/twitter/scoot/cloud/cluster"
+	"github.com/twitter/scoot/cloud"
 )
 
 // Poor man's dynamic localhost cluster nodes.
 // Note: lsof is slow to return on osx so we just use 'ps' and regex match the port.
-func MakeFetcher(procName, portFlag string) cluster.Fetcher {
+func MakeFetcher(procName, portFlag string) cloud.Fetcher {
 	return &localFetcher{
 		procName: procName,
 		addrFlag: portFlag,
@@ -28,8 +28,8 @@ type localFetcher struct {
 	re       *regexp.Regexp
 }
 
-// Implements cluster.Fetcher interface for local Nodes via ps
-func (f *localFetcher) Fetch() (nodes []cluster.Node, err error) {
+// Implements cloud.Fetcher interface for local Nodes via ps
+func (f *localFetcher) Fetch() (nodes []cloud.Node, err error) {
 	var data []byte
 	if data, err = f.fetchData(); err != nil {
 		return nil, err
@@ -46,13 +46,13 @@ func (f *localFetcher) fetchData() ([]byte, error) {
 	return data, err
 }
 
-func parseData(data []byte, procName, addrFlag string, re *regexp.Regexp) ([]cluster.Node, error) {
-	nodes := []cluster.Node{}
+func parseData(data []byte, procName, addrFlag string, re *regexp.Regexp) ([]cloud.Node, error) {
+	nodes := []cloud.Node{}
 	lines := string(data)
 	for _, line := range strings.Split(lines, "\n") {
 		thrift, err := parseFlag(line, procName, addrFlag, re)
 		if err == nil {
-			nodes = append(nodes, cluster.NewIdNode(thrift))
+			nodes = append(nodes, cloud.NewIdNode(thrift))
 		}
 	}
 	return nodes, nil

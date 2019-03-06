@@ -3,7 +3,7 @@ package workers
 import (
 	"time"
 
-	"github.com/twitter/scoot/cloud/cluster"
+	"github.com/twitter/scoot/cloud"
 	"github.com/twitter/scoot/os/temp"
 	"github.com/twitter/scoot/runner"
 	"github.com/twitter/scoot/runner/execer/execers"
@@ -13,7 +13,7 @@ import (
 )
 
 // Makes a worker suitable for using as an in-memory worker.
-func MakeInmemoryWorker(node cluster.Node, tmp *temp.TempDir) runner.Service {
+func MakeInmemoryWorker(node cloud.Node, tmp *temp.TempDir) runner.Service {
 	return MakeDoneWorker(tmp)
 }
 
