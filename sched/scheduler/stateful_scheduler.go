@@ -20,6 +20,7 @@ import (
 	"github.com/twitter/scoot/saga"
 	"github.com/twitter/scoot/sched"
 	"github.com/twitter/scoot/workerapi"
+	"sync"
 )
 
 // Used to get proper logging from tests...
@@ -170,7 +171,9 @@ type statefulScheduler struct {
 
 	// stats
 	stat stats.StatsReceiver
-	runningOrWaitingTaskCnt	int
+
+	runningOrWaitingTaskCntMU sync.RWMutex		// mutex sync'ing setting/reading of task count
+	runningOrWaitingTaskCnt	int					// count of tasks waiting or running
 }
 
 // contains jobId to be killed and callback for the result of processing the request
@@ -551,7 +554,10 @@ func (s *statefulScheduler) updateStats() {
 		}
 	}
 
+	s.runningOrWaitingTaskCntMU.Lock()
+	defer s.runningOrWaitingTaskCntMU.Unlock()
 	s.runningOrWaitingTaskCnt = remainingTasks
+
 	// publish the rest of the stats
 	s.stat.Gauge(stats.SchedAcceptedJobsGauge).Update(int64(len(s.inProgressJobs)))
 	s.stat.Gauge(stats.SchedWaitingJobsGauge).Update(int64(jobsWaitingToStart))
@@ -1140,5 +1146,8 @@ func (s *statefulScheduler) SetSchedulerStatus(maxTasks int) error {
 // - Note: max number is NOT enforced by the scheduler, we expect the user to not
 // - request a job if their job puts the scheduler over the max number of tasks
 func (s *statefulScheduler) GetSchedulerStatus() (int, int) {
+	s.runningOrWaitingTaskCntMU.RLock()
+	defer s.runningOrWaitingTaskCntMU.RUnlock()
+
 	return s.runningOrWaitingTaskCnt, s.config.TaskThrottle
 }
