@@ -594,22 +594,6 @@ func Test_StatefulScheduler_GetSomeThrottledStatus(t *testing.T) {
 	}
 }
 
-func checkGauges(requestor string, expectedCounts map[string]int, s *statefulScheduler,
-	t *testing.T, statsRegistry stats.StatsRegistry) bool {
-	// check the gauges
-	if !stats.StatsOk("", statsRegistry, t,
-		map[string]stats.Rule{
-			fmt.Sprintf("%s_%s", stats.SchedNumRunningJobsGauge, requestor):  {Checker: stats.Int64EqTest, Value: expectedCounts["jobRunning"]},
-			fmt.Sprintf("%s_%s", stats.SchedWaitingJobsGauge, requestor):     {Checker: stats.Int64EqTest, Value: expectedCounts["jobsWaitingToStart"]},
-			fmt.Sprintf("%s_%s", stats.SchedNumRunningTasksGauge, requestor): {Checker: stats.Int64EqTest, Value: expectedCounts["numRunningTasks"]},
-			fmt.Sprintf("%s_%s", stats.SchedNumWaitingTasksGauge, requestor): {Checker: stats.Int64EqTest, Value: expectedCounts["numWaitingTasks"]},
-		}) {
-		return false
-	}
-
-	return true
-}
-
 func allTasksInState(jobName string, jobId string, s *statefulScheduler, status sched.Status) bool {
 	for _, task := range s.getJob(jobId).Tasks {
 		if task.Status != status {

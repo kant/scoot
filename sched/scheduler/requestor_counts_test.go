@@ -1,11 +1,13 @@
 package scheduler
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/twitter/scoot/common/stats"
 	"github.com/twitter/scoot/saga/sagalogs"
 	"github.com/twitter/scoot/sched"
 )
@@ -236,3 +238,20 @@ func addRequestorTestJobsToScheduler(jobProfiles []map[string]string, s *statefu
 
 	return jobIds
 }
+
+func checkGauges(requestor string, expectedCounts map[string]int, s *statefulScheduler,
+	t *testing.T, statsRegistry stats.StatsRegistry) bool {
+	// check the gauges
+	if !stats.StatsOk("", statsRegistry, t,
+		map[string]stats.Rule{
+			fmt.Sprintf("%s_%s", stats.SchedNumRunningJobsGauge, requestor):  {Checker: stats.Int64EqTest, Value: expectedCounts["jobRunning"]},
+			fmt.Sprintf("%s_%s", stats.SchedWaitingJobsGauge, requestor):     {Checker: stats.Int64EqTest, Value: expectedCounts["jobsWaitingToStart"]},
+			fmt.Sprintf("%s_%s", stats.SchedNumRunningTasksGauge, requestor): {Checker: stats.Int64EqTest, Value: expectedCounts["numRunningTasks"]},
+			fmt.Sprintf("%s_%s", stats.SchedNumWaitingTasksGauge, requestor): {Checker: stats.Int64EqTest, Value: expectedCounts["numWaitingTasks"]},
+		}) {
+		return false
+	}
+
+	return true
+}
+

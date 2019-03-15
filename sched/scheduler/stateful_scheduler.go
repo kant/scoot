@@ -170,6 +170,7 @@ type statefulScheduler struct {
 
 	// stats
 	stat stats.StatsReceiver
+	runningOrWaitingTaskCnt	int
 }
 
 // contains jobId to be killed and callback for the result of processing the request
@@ -550,6 +551,7 @@ func (s *statefulScheduler) updateStats() {
 		}
 	}
 
+	s.runningOrWaitingTaskCnt = remainingTasks
 	// publish the rest of the stats
 	s.stat.Gauge(stats.SchedAcceptedJobsGauge).Update(int64(len(s.inProgressJobs)))
 	s.stat.Gauge(stats.SchedWaitingJobsGauge).Update(int64(jobsWaitingToStart))
@@ -1133,11 +1135,10 @@ func (s *statefulScheduler) SetSchedulerStatus(maxTasks int) error {
 }
 
 // return
-// - true/false indicating if the scheduler is accepting job requests
 // - the current number of tasks running or waiting to run
 // - the max number of tasks the scheduler will handle, -1 -> there is no max number
+// - Note: max number is NOT enforced by the scheduler, we expect the user to not
+// - request a job if their job puts the scheduler over the max number of tasks
 func (s *statefulScheduler) GetSchedulerStatus() (int, int) {
-	var total, completed, _ = s.getSchedulerTaskCounts()
-	var task_cnt = total - completed
-	return task_cnt, s.config.TaskThrottle
+	return s.runningOrWaitingTaskCnt, s.config.TaskThrottle
 }

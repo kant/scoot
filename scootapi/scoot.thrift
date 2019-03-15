@@ -155,6 +155,8 @@ service CloudScoot {
   SchedulerStatus GetSchedulerStatus() throws (
     1: ScootServerError err
   )
+  # Note: max number is NOT enforced by the scheduler, we expect the user to not
+  # request a job if their job puts the scheduler over the max number of tasks
   void SetSchedulerStatus(1: i32 maxTasks) throws (
     1: InvalidRequest ir
     2: ScootServerError err
