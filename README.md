@@ -78,6 +78,8 @@ go get github.com/apache/thrift/lib/go/thrift
 ```
 
 ## Install/Access Scoot Executables and libraries
+```
 *cd to scoot directory (workspace/github.com/twitter/scoot)
 *run: go install ./binaries/...
 ** the binaries will be installed in workspace/bin
+```
